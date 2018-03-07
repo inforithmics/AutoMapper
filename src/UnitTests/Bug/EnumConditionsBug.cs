@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
+using Shouldly;
+using Xunit;
 
 namespace AutoMapper.UnitTests.Bug
 {
@@ -23,30 +24,28 @@ namespace AutoMapper.UnitTests.Bug
             public Enum1 Prop1 { get; set; }
             public Enum2 Prop2 { get; set; }
         }
-
-        [TestFixture]
         public class EnumMapperTest
         {
-            [Test]
+            [Fact]
             public void Mapper_respects_condition()
             {
                 var _c1Called = false;
                 var _c2Called = false;
-                Mapper.CreateMap<EnumTestSource, EnumTestDest>()
+                var config = new MapperConfiguration(cfg => cfg.CreateMap<EnumTestSource, EnumTestDest>()
                     .ForMember(m => m.Prop1, o =>
                     {
-                        o.Condition(c => { _c1Called = true; return !c.IsSourceValueNull; });
-                        o.ResolveUsing(f => f.Prop1.Aggregate((current, next) => current | next));
+                        o.Condition((_, srcProp, destProp) => { _c1Called = true; return srcProp != null; });
+                        o.ResolveUsing(f => f.Prop1?.Aggregate((current, next) => current | next));
                     })
                     .ForMember(m => m.Prop2, o =>
                     {
-                        o.Condition(c => { _c2Called = true; return !c.IsSourceValueNull; });
-                        o.ResolveUsing(f => f.Prop2.Aggregate((current, next) => current | next));
-                    });
+                        o.Condition((_, srcProp, destProp) => { _c2Called = true; return srcProp != null; });
+                        o.ResolveUsing(f => f.Prop2?.Aggregate((current, next) => current | next));
+                    }));
                 var src = new EnumTestSource { Prop1 = new[] { Enum1.One }, Prop2 = null };
-                var dest = Mapper.Map<EnumTestDest>(src); // will throw
-                Assert.IsTrue(_c1Called);
-                Assert.IsTrue(_c2Called);
+                var dest = config.CreateMapper().Map<EnumTestDest>(src); // will throw
+                _c1Called.ShouldBeTrue();
+                _c2Called.ShouldBeTrue();
             }
         }
     }

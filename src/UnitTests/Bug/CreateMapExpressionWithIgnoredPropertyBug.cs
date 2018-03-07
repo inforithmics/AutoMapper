@@ -1,27 +1,32 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using AutoMapper.QueryableExtensions;
-using NUnit.Framework;
+using System.Reflection;
+using Shouldly;
+using Xunit;
 
 namespace AutoMapper.UnitTests.Bug
 {
-    [TestFixture]
-    public class CreateMapExpressionWithIgnoredPropertyBug : NonValidatingSpecBase
+    using QueryableExtensions;
+
+    public class CreateMapExpressionWithIgnoredPropertyBug
     {
-        [Test]
+        [Fact]
         public void ShouldNotMapPropertyWhenItIsIgnored()
         {
-            Mapper.CreateMap<Person, Person>()
-                .ForMember(x => x.Name, x => x.Ignore());
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.CreateMap<Person, Person>()
+                    .ForMember(x => x.Name, x => x.Ignore());
+            });
 
             IQueryable<Person> collection = (new List<Person> { new Person { Name = "Person1" } }).AsQueryable();
 
-            List<Person> result = collection.Project().To<Person>().ToList();
+            List<Person> result = collection.ProjectTo<Person>(config).ToList();
 
-            result.ForEach(x => Assert.IsNull(x.Name));
+            result.ForEach(x => x.Name.ShouldBeNull());
         }
 
-        private class Person
+        public class Person
         {
             public string Name { get; set; }
         }

@@ -1,37 +1,43 @@
-using System;
 using System.Collections.Generic;
 
 namespace AutoMapper.Mappers
 {
-    public static class MapperRegistry
+    internal static class MapperRegistry
     {
-        public static Func<IEnumerable<IObjectMapper>> AllMappers = () => new IObjectMapper[]
+        public static IList<IObjectMapper> Mappers() => new List<IObjectMapper>
         {
-#if !SILVERLIGHT
-            new DataReaderMapper(),
-#endif
-            new TypeMapMapper(TypeMapObjectMapperRegistry.AllMappers()),
-            new StringMapper(),
+            new NullableSourceMapper(),
+            new NullableDestinationMapper(),
+            new ExpressionMapper(), 
             new FlagsEnumMapper(),
-            new EnumMapper(),
+            new StringToEnumMapper(), 
+            new EnumToStringMapper(),
+            new EnumToEnumMapper(), 
+            new EnumToUnderlyingTypeMapper(),
+            new UnderlyingTypeToEnumMapper(),
+            new MultidimensionalArrayMapper(),
             new ArrayMapper(),
-			new EnumerableToDictionaryMapper(),
-#if !SILVERLIGHT
-            new NameValueCollectionMapper(), 
+            new EnumerableToDictionaryMapper(),
+#if NETSTANDARD1_3 || NET45 || NET40
+            new NameValueCollectionMapper(),
 #endif
             new DictionaryMapper(),
-#if !SILVERLIGHT
-            new ListSourceMapper(),
-#endif
-            new ReadOnlyCollectionMapper(), 
+            new ReadOnlyCollectionMapper(),
+            new HashSetMapper(),
             new CollectionMapper(),
             new EnumerableMapper(),
             new AssignableMapper(),
+            new ConvertMapper(),
+            new StringMapper(),
+#if NETSTANDARD1_3 || NET45 || NET40
             new TypeConverterMapper(),
-            new NullableSourceMapper(),
-            new NullableMapper(),
+#endif
             new ImplicitConversionOperatorMapper(),
             new ExplicitConversionOperatorMapper(),
+            new FromStringDictionaryMapper(),
+            new ToStringDictionaryMapper(),
+            new FromDynamicMapper(),
+            new ToDynamicMapper()
         };
     }
 }

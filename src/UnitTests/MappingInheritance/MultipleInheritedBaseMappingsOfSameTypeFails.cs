@@ -1,8 +1,7 @@
-﻿using NUnit.Framework;
+﻿using Xunit;
 
 namespace AutoMapper.UnitTests.Bug
 {
-    [TestFixture]
     public class MultipleMappingsOfSameTypeFails
     {
         public class MyClass
@@ -24,17 +23,21 @@ namespace AutoMapper.UnitTests.Bug
         public class InformationBase{}
         public class InformationClass{}
 
-        [Test]
+        [Fact]
         public void multiple_inherited_base_mappings_of_same_type_fails()
         {
-            Mapper.CreateMap<MyClass, MyDto>()
-                .ForMember(d=> d.Information, m => m.MapFrom(s=>s.CurrentInformation))
-                .Include<MySpecificClass, MySpecificDto>();
-            Mapper.CreateMap<MySpecificClass, MySpecificDto>();
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.CreateMap<MyClass, MyDto>()
+                    .ForMember(d => d.Information, m => m.MapFrom(s => s.CurrentInformation))
+                    .Include<MySpecificClass, MySpecificDto>();
+                cfg.CreateMap<MySpecificClass, MySpecificDto>();
 
-            Mapper.CreateMap<InformationClass, InformationDto>();
+                cfg.CreateMap<InformationClass, InformationDto>();
+            });
 
-            Mapper.AssertConfigurationIsValid();
+
+            config.AssertConfigurationIsValid();
         }
     }
 }

@@ -1,10 +1,9 @@
 using System.Collections.Generic;
 using AutoMapper;
-using AutoMapper.Mappers;
 using NUnit.Framework;
 using StructureMap;
 using StructureMap.Attributes;
-using Should;
+using Shouldly;
 using StructureMap.Configuration.DSL;
 
 namespace AutoMapperSamples
@@ -25,81 +24,31 @@ namespace AutoMapperSamples
             }
 
             [Test]
-            public void Example()
+            public void Example2()
             {
-                ObjectFactory.Initialize(init =>
+                var container = new Container(init =>
                 {
                     init.AddRegistry<ConfigurationRegistry>();
                 });
 
-                var configuration1 = ObjectFactory.GetInstance<IConfiguration>();
-                var configuration2 = ObjectFactory.GetInstance<IConfiguration>();
-                configuration1.ShouldBeSameAs(configuration2);
-
-                var configurationProvider = ObjectFactory.GetInstance<IConfigurationProvider>();
-                configurationProvider.ShouldBeSameAs(configuration1);
-
-                var configuration = ObjectFactory.GetInstance<ConfigurationStore>();
-                configuration.ShouldBeSameAs(configuration1);
-                
-                configuration1.CreateMap<Source, Destination>();
-
-                var engine = ObjectFactory.GetInstance<IMappingEngine>();
+                var engine = container.GetInstance<IMapper>();
 
                 var destination = engine.Map<Source, Destination>(new Source {Value = 15});
 
-                destination.Value.ShouldEqual(15);
+                destination.Value.ShouldBe(15);
             }
 
-            [Test]
-            public void Example2()
+            public class ConfigurationRegistry : Registry
             {
-                ObjectFactory.Initialize(init =>
+                public ConfigurationRegistry()
                 {
-                    init.AddRegistry<MappingEngineRegistry>();
-                });
+                    var configuration = new MapperConfiguration(cfg => cfg.CreateMap<Source, Destination>());
 
-                Mapper.Reset();
-
-                Mapper.CreateMap<Source, Destination>();
-
-                var engine = ObjectFactory.GetInstance<IMappingEngine>();
-
-                var destination = engine.Map<Source, Destination>(new Source {Value = 15});
-
-                destination.Value.ShouldEqual(15);
+                    For<IMapper>().Use(ctx => new Mapper(configuration, ctx.GetInstance));
+                }
             }
         }
 
-        public class ConfigurationRegistry : Registry
-        {
-            public ConfigurationRegistry()
-            {
-				ForRequestedType<ConfigurationStore>()
-					.CacheBy(InstanceScope.Singleton)
-					.TheDefault.Is.OfConcreteType<ConfigurationStore>()
-					.CtorDependency<IEnumerable<IObjectMapper>>().Is(expr => expr.ConstructedBy(MapperRegistry.AllMappers));
-
-                ForRequestedType<IConfigurationProvider>()
-					.TheDefault.Is.ConstructedBy(ctx => ctx.GetInstance<ConfigurationStore>());
-
-                ForRequestedType<IConfiguration>()
-					.TheDefault.Is.ConstructedBy(ctx => ctx.GetInstance<ConfigurationStore>());
-
-                ForRequestedType<IMappingEngine>().TheDefaultIsConcreteType<MappingEngine>();
-
-            	ForRequestedType<ITypeMapFactory>().TheDefaultIsConcreteType<TypeMapFactory>();
-            }
-        }
-
-        public class MappingEngineRegistry : Registry
-        {
-            public MappingEngineRegistry()
-            {
-                ForRequestedType<IMappingEngine>()
-                    .TheDefault.Is.ConstructedBy(() => Mapper.Engine);
-            }
-        }
 
     }
 }

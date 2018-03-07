@@ -1,86 +1,41 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using Should;
-using NUnit.Framework;
 using System.Linq;
-using Rhino.Mocks;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using Xunit;
+using Shouldly;
+using AutoMapper.Configuration.Conventions;
 
 namespace AutoMapper.UnitTests.Tests
 {
-    public class StubMappingOptions : IMappingOptions
+    using System;
+    using Assembly = System.Reflection.Assembly;
+
+    public class StubNamingConvention : INamingConvention
     {
-        private INamingConvention _sourceMemberNamingConvention;
+        private readonly Func<Match, string> _replaceFunc;
 
-        private INamingConvention _destinationMemberNamingConvention;
-
-        private IEnumerable<string> _prefixes = new List<string>();
-
-        private IEnumerable<string> _postfixes = new List<string>();
-
-        private IEnumerable<string> _destinationPrefixes = new List<string>();
-
-        private IEnumerable<string> _destinationPostfixes = new List<string>();
-
-        private IEnumerable<AliasedMember> _aliases = new List<AliasedMember>();
-
-		private Assembly[] _sourceExtensionMethodSearch = null;
-
-        public INamingConvention SourceMemberNamingConvention
+        public StubNamingConvention(Func<Match, string> replaceFunc)
         {
-            get { return _sourceMemberNamingConvention; }
-            set { _sourceMemberNamingConvention = value; }
+            _replaceFunc = replaceFunc;
+            SeparatorCharacter = "";
         }
 
-        public INamingConvention DestinationMemberNamingConvention
-        {
-            get { return _destinationMemberNamingConvention; }
-            set { _destinationMemberNamingConvention = value; }
-        }
+        public Regex SplittingExpression { get; set; }
+        public string SeparatorCharacter { get; set; }
 
-        public IEnumerable<string> Prefixes
+        public string ReplaceValue(Match match)
         {
-            get { return _prefixes; }
+            return _replaceFunc(match);
         }
-
-        public IEnumerable<string> Postfixes
-        {
-            get { return _postfixes; }
-        }
-
-        public IEnumerable<string> DestinationPrefixes
-        {
-            get { return _destinationPrefixes; }
-        }
-
-        public IEnumerable<string> DestinationPostfixes
-        {
-            get { return _destinationPostfixes; }
-        }
-
-        public IEnumerable<AliasedMember> Aliases
-        {
-            get { return _aliases; }
-        }
-
-        public bool ConstructorMappingEnabled
-        {
-            get { return true; }
-        }
-
-		public Assembly[] SourceExtensionMethodSearch
-		{
-			get { return _sourceExtensionMethodSearch; }
-			set { _sourceExtensionMethodSearch = value; }
-		}
-	}
+    }
 
     public class When_constructing_type_maps_with_matching_property_names : SpecBase
     {
-    	private TypeMapFactory _factory;
+        private TypeMapFactory _factory;
 
-    	public class Source
+        public class Source
         {
             public int Value { get; set; }
             public int SomeOtherValue { get; set; }
@@ -91,116 +46,178 @@ namespace AutoMapper.UnitTests.Tests
             public int Value { get; set; }
             public int SomeOtherValue { get; set; }
         }
-	
-		protected override void Establish_context()
-		{
-			_factory = new TypeMapFactory();
-		}
 
-		[Test]
+        protected override void Establish_context()
+        {
+            _factory = new TypeMapFactory();
+        }
+
+        private class TestProfile : Profile
+        {
+            public override string ProfileName => "Test";
+        }
+
+        [Fact]
         public void Should_map_properties_with_same_name()
         {
-			var mappingOptions = new StubMappingOptions();
-			mappingOptions.SourceMemberNamingConvention = new PascalCaseNamingConvention();
-			mappingOptions.DestinationMemberNamingConvention = new PascalCaseNamingConvention();
-			
-			var typeMap = _factory.CreateTypeMap(typeof(Source), typeof(Destination), mappingOptions, MemberList.Destination);
+            var mappingOptions = new TestProfile();
+            //mappingOptions.SourceMemberNamingConvention = new PascalCaseNamingConvention();
+            //mappingOptions.DestinationMemberNamingConvention = new PascalCaseNamingConvention();
+            var profile = new ProfileMap(mappingOptions);
+
+            var typeMap = _factory.CreateTypeMap(typeof(Source), typeof(Destination), profile);
 
             var propertyMaps = typeMap.GetPropertyMaps();
-            
-            propertyMaps.Count().ShouldEqual(2);
+
+            propertyMaps.Count().ShouldBe(2);
         }
     }
 
-	public class When_using_a_custom_source_naming_convention : SpecBase
-	{
-		private TypeMapFactory _factory;
-		private TypeMap _map;
-		private IMappingOptions _mappingOptions;
+    public class When_using_a_custom_source_naming_convention : SpecBase
+    {
+        private TypeMapFactory _factory;
+        private TypeMap _map;
+        private ProfileMap _mappingOptions;
+        
+        private class Source
+        {
+            public SubSource some__source { get; set; }
+        }
 
-		private class Source
-		{
-			public SubSource some__source { get; set; }
-		}
+        private class SubSource
+        {
+            public int value { get; set; }
+        }
 
-		private class SubSource
-		{
-			public int value { get; set; }
-		}
+        private class Destination
+        {
+            public int SomeSourceValue { get; set; }
+        }
 
-		private class Destination
-		{
-			public int SomeSourceValue { get; set; }
-		}
+        private class TestProfile : Profile
+        {
+            public override string ProfileName => "Test";
+        }
+        protected override void Establish_context()
+        {
+            var namingConvention = new StubNamingConvention(s => s.Value.ToLower()){SeparatorCharacter = "__", SplittingExpression = new Regex(@"[\p{Ll}\p{Lu}0-9]+(?=__?)")};
 
-		protected override void Establish_context()
-		{
-			INamingConvention namingConvention = CreateStub<INamingConvention>();
-			namingConvention.Stub(nc => nc.SeparatorCharacter).Return("__");
+            var profile = new TestProfile();
+            profile.AddMemberConfiguration().AddMember<NameSplitMember>(_ =>
+            {
+                _.SourceMemberNamingConvention = namingConvention;
+                _.DestinationMemberNamingConvention = new PascalCaseNamingConvention();
+            });
+            _mappingOptions = new ProfileMap(profile);
 
-			_mappingOptions = new StubMappingOptions();
-			_mappingOptions.SourceMemberNamingConvention = namingConvention;
-			_mappingOptions.DestinationMemberNamingConvention = new PascalCaseNamingConvention();
+            _factory = new TypeMapFactory();
 
-			_factory = new TypeMapFactory();
+        }
 
-		}
+        protected override void Because_of()
+        {
+            _map = _factory.CreateTypeMap(typeof(Source), typeof(Destination), _mappingOptions);
+        }
 
-		protected override void Because_of()
-		{
-			_map = _factory.CreateTypeMap(typeof(Source), typeof(Destination), _mappingOptions, MemberList.Destination);
-		}
+        [Fact]
+        public void Should_split_using_naming_convention_rules()
+        {
+            _map.GetPropertyMaps().Count().ShouldBe(1);
+        }
+    }
 
-		[Test]
-		public void Should_split_using_naming_convention_rules()
-		{
-			_map.GetPropertyMaps().Count().ShouldEqual(1);
-		}
-	}
+    public class When_using_a_custom_destination_naming_convention : SpecBase
+    {
+        private TypeMapFactory _factory;
+        private TypeMap _map;
+        private ProfileMap _mappingOptions;
 
-	public class When_using_a_custom_destination_naming_convention : SpecBase
-	{
-		private TypeMapFactory _factory;
-		private TypeMap _map;
-		private IMappingOptions _mappingOptions;
+        private class Source
+        {
+            public SubSource SomeSource { get; set; }
+        }
 
-		private class Source
-		{
-			public SubSource SomeSource { get; set; }
-		}
+        private class SubSource
+        {
+            public int Value { get; set; }
+        }
 
-		private class SubSource
-		{
-			public int Value { get; set; }
-		}
+        private class Destination
+        {
+            public int some__source__value { get; set; }
+        }
 
-		private class Destination
-		{
-			public int some__source__value { get; set; }
-		}
+        private class TestProfile : Profile
+        {
+            public override string ProfileName => "Test";
+        }
 
-		protected override void Establish_context()
-		{
-			INamingConvention namingConvention = CreateStub<INamingConvention>();
+        protected override void Establish_context()
+        {
+            var namingConvention = new StubNamingConvention(s => s.Value.ToLower()) { SeparatorCharacter = "__", SplittingExpression = new Regex(@"[\p{Ll}\p{Lu}0-9]+(?=__?)") };
 
-			namingConvention.Stub(nc => nc.SplittingExpression).Return(new Regex(@"[\p{Ll}0-9]*(?=_?)"));
+            var profile = new TestProfile();
+            profile.AddMemberConfiguration().AddMember<NameSplitMember>(_ =>
+            {
+                _.SourceMemberNamingConvention = new PascalCaseNamingConvention();
+                _.DestinationMemberNamingConvention = namingConvention;
+            });
+            _mappingOptions = new ProfileMap(profile);
 
-			_mappingOptions = new StubMappingOptions();
-			_mappingOptions.SourceMemberNamingConvention = new PascalCaseNamingConvention();
-			_mappingOptions.DestinationMemberNamingConvention = namingConvention;
+            _factory = new TypeMapFactory();
+        }
 
-			_factory = new TypeMapFactory();
-		}
+        protected override void Because_of()
+        {
+            _map = _factory.CreateTypeMap(typeof(Source), typeof(Destination), _mappingOptions);
+        }
 
-		protected override void Because_of()
-		{
-			_map = _factory.CreateTypeMap(typeof(Source), typeof(Destination), _mappingOptions, MemberList.Destination);
-		}
+        [Fact]
+        public void Should_split_using_naming_convention_rules()
+        {
+            _map.GetPropertyMaps().Count().ShouldBe(1);
+        }
+    }
 
-		[Test]
-		public void Should_split_using_naming_convention_rules()
-		{
-			_map.GetPropertyMaps().Count().ShouldEqual(1);
-		}
-	}
+    public class When_using_a_source_member_name_replacer : SpecBase
+    {
+        private TypeMapFactory _factory;
+
+        public class Source
+        {
+            public int Value { get; set; }
+            public int Ävíator { get; set; }
+            public int SubAirlinaFlight { get; set; }
+        }
+
+        public class Destination
+        {
+            public int Value { get; set; }
+            public int Aviator { get; set; }
+            public int SubAirlineFlight { get; set; }
+        }
+
+        protected override void Establish_context()
+        {
+            _factory = new TypeMapFactory();
+        }
+
+        [Fact]
+        public void Should_map_properties_with_different_names()
+        {
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.ReplaceMemberName("A", "Ä");
+                cfg.ReplaceMemberName("i", "í");
+                cfg.ReplaceMemberName("Airline", "Airlina");
+                cfg.CreateMap<Source, Destination>();
+            });
+
+            var mapper = config.CreateMapper();
+            var dest = mapper.Map<Destination>(new Source {Ävíator = 3, SubAirlinaFlight = 4, Value = 5});
+            dest.Aviator.ShouldBe(3);
+            dest.SubAirlineFlight.ShouldBe(4);
+            dest.Value.ShouldBe(5);
+        }
+    }
 }

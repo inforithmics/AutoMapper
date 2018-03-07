@@ -1,84 +1,73 @@
-﻿using NUnit.Framework;
-using Should;
+﻿using Xunit;
+using Shouldly;
 
 namespace AutoMapper.UnitTests.Bug
 {
-    [TestFixture]
-    public class SettersInBaseClasses
+    public class SettersInBaseClasses : AutoMapperSpecBase
     {
-        [TestFixtureSetUp]
-        public void SetUp(){
-            Mapper.CreateMap<Source, GrandGrandChild>();
-            Mapper.CreateMap<Source, GrandChild>();
-            Mapper.CreateMap<Source, Child>();
+        protected override MapperConfiguration Configuration { get; } = new MapperConfiguration(cfg =>
+        {
+            cfg.CreateMap<Source, GrandGrandChild>();
+            cfg.CreateMap<Source, GrandChild>();
+            cfg.CreateMap<Source, Child>();
+            cfg.CreateMap<Source, GrandGrandChildPrivate>();
+            cfg.CreateMap<Source, GrandChildPrivate>();
+            cfg.CreateMap<Source, ChildPrivate>();
+        });
 
-            Mapper.CreateMap<Source, GrandGrandChildPrivate>();
-            Mapper.CreateMap<Source, GrandChildPrivate>();
-            Mapper.CreateMap<Source, ChildPrivate>();
-        }
-
-        [Test]
+        [Fact]
         public void PublicSetterInParentWorks()
         {
             var source = new Source {ParentProperty = "ParentProperty", ChildProperty = 1};
             var target = Mapper.Map<Source, Child>(source);
-            target.ParentProperty.ShouldEqual(source.ParentProperty);
-            target.ChildProperty.ShouldEqual(source.ChildProperty);
+            target.ParentProperty.ShouldBe(source.ParentProperty);
+            target.ChildProperty.ShouldBe(source.ChildProperty);
         }
 
         
-        [Test]
+        [Fact]
         public void PublicSetterInGrandparentWorks()
         {
             var source = new Source {ParentProperty = "ParentProperty", ChildProperty = 1};
             var target = Mapper.Map<Source, GrandChild>(source);
-            target.ParentProperty.ShouldEqual(source.ParentProperty);
-            target.ChildProperty.ShouldEqual(source.ChildProperty);
+            target.ParentProperty.ShouldBe(source.ParentProperty);
+            target.ChildProperty.ShouldBe(source.ChildProperty);
         }
 
-        [Test]
+        [Fact]
         public void PublicSetterInGrandGrandparentWorks()
         {
             var source = new Source {ParentProperty = "ParentProperty", ChildProperty = 1};
             var target = Mapper.Map<Source, GrandGrandChild>(source);
-            target.ParentProperty.ShouldEqual(source.ParentProperty);
-            target.ChildProperty.ShouldEqual(source.ChildProperty);
+            target.ParentProperty.ShouldBe(source.ParentProperty);
+            target.ChildProperty.ShouldBe(source.ChildProperty);
         }
 
-        [Test]
-#if SILVERLIGHT
-        [Ignore("Not supported in Silverlight 4")]
-#endif
+        [Fact]
         public void PrivateSetterInParentWorks()
         {
             var source = new Source {ParentProperty = "ParentProperty", ChildProperty = 1};
             var target = Mapper.Map<Source, ChildPrivate>(source);
-            target.ParentProperty.ShouldEqual(source.ParentProperty);
-            target.ChildProperty.ShouldEqual(source.ChildProperty);
+            target.ParentProperty.ShouldBe(source.ParentProperty);
+            target.ChildProperty.ShouldBe(source.ChildProperty);
         }
 
-        [Test]
-#if SILVERLIGHT
-        [Ignore("Not supported in Silverlight 4")]
-#endif
+        [Fact]
         public void PrivateSetterInGrandparentWorks()
         {
             var source = new Source {ParentProperty = "ParentProperty", ChildProperty = 1};
             var target = Mapper.Map<Source, GrandChildPrivate>(source);
-            target.ParentProperty.ShouldEqual(source.ParentProperty);
-            target.ChildProperty.ShouldEqual(source.ChildProperty);
+            target.ParentProperty.ShouldBe(source.ParentProperty);
+            target.ChildProperty.ShouldBe(source.ChildProperty);
         }
 
-        [Test]
-#if SILVERLIGHT
-        [Ignore("Not supported in Silverlight 4")]
-#endif
+        [Fact]
         public void PrivateSetterInGrandGrandparentWorks()
         {
             var source = new Source {ParentProperty = "ParentProperty", ChildProperty = 1};
             var target = Mapper.Map<Source, GrandGrandChildPrivate>(source);
-            target.ParentProperty.ShouldEqual(source.ParentProperty);
-            target.ChildProperty.ShouldEqual(source.ChildProperty);
+            target.ParentProperty.ShouldBe(source.ParentProperty);
+            target.ChildProperty.ShouldBe(source.ChildProperty);
         }
     }
 

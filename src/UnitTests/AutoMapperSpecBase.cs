@@ -1,38 +1,39 @@
-using Should;
-using NUnit.Framework;
-#if !SILVERLIGHT
-using Rhino.Mocks;
-#endif
+using System;
+using Xunit;
 
 namespace AutoMapper.UnitTests
 {
-    public class AutoMapperSpecBase : NonValidatingSpecBase
+    using QueryableExtensions;
+
+    public abstract class AutoMapperSpecBase : NonValidatingSpecBase
     {
-        [Test]
+        [Fact]
         public void Should_have_valid_configuration()
         {
-            Mapper.AssertConfigurationIsValid();
+            Configuration.AssertConfigurationIsValid();
         }
+
     }
 
-    public class NonValidatingSpecBase : SpecBase
+    public abstract class NonValidatingSpecBase : SpecBase
     {
-        protected override void Cleanup()
-        {
-            Mapper.Reset();
-        }
+        private IMapper mapper;
 
+        protected abstract MapperConfiguration Configuration { get; }
+        protected IConfigurationProvider ConfigProvider => Configuration;
+
+        protected IMapper Mapper => mapper ?? (mapper = Configuration.CreateMapper());
     }
 
     public abstract class SpecBaseBase
     {
-        public virtual void MainSetup()
+        protected virtual void MainSetup()
         {
             Establish_context();
             Because_of();
         }
 
-        public virtual void MainTeardown()
+        protected virtual void MainTeardown()
         {
             Cleanup();
         }
@@ -48,34 +49,18 @@ namespace AutoMapper.UnitTests
         protected virtual void Cleanup()
         {
         }
-
-#if !SILVERLIGHT
-        protected TType CreateDependency<TType>()
-            where TType : class
-        {
-            return MockRepository.GenerateMock<TType>();
-        }
-
-        protected TType CreateStub<TType>() where TType : class
-        {
-            return MockRepository.GenerateStub<TType>();
-        }
-#endif
     }
-
-    [TestFixture]
-    public abstract class SpecBase : SpecBaseBase
+    public abstract class SpecBase : SpecBaseBase, IDisposable
     {
-        [TestFixtureSetUp]
-        public override void MainSetup()
+        protected SpecBase()
         {
-            base.MainSetup();
+            Establish_context();
+            Because_of();
         }
 
-        [TestFixtureTearDown]
-        public override void MainTeardown()
+        public void Dispose()
         {
-            base.MainTeardown();
+            Cleanup();
         }
     }
 
